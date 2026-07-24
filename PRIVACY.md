@@ -1,13 +1,14 @@
-# Конфиденциальность
+# Privacy
 
-`hlsget` не собирает аналитику, не создаёт учётные записи и не отправляет
-разработчику ссылки, заголовки, cookies или сведения о загруженных файлах.
+`hlsget` does not collect analytics, create user accounts, or send the developer
+playlist URLs, request headers, cookies, file names, or download history.
 
-Сетевые запросы выполняются только к адресам, указанным пользователем или
-обнаруженным внутри переданного HLS-плейлиста. Для сборки локального файла
-используется FFmpeg, входящий в пакет.
+Network requests are made only to URLs supplied by the user or referenced by
+the supplied HLS playlist. The final media file is assembled locally with the
+FFmpeg copy bundled in the package.
 
-Если пользователь передаёт cookies или другие заголовки через командную
-строку, они могут сохраниться в истории оболочки. Для чувствительных данных
-рекомендуется предварительно отключать запись команды в историю или очищать
-её после запуска.
+If you pass cookies or access tokens on the command line, your shell may save
+them in its command history. Avoid sharing commands, logs, or screenshots that
+contain sensitive headers. Clear the relevant history entry when necessary.
+
+The application has no telemetry and no background service.

@@ -1,39 +1,62 @@
-# Публикация hlsget в Snap Store
+# Publishing hlsget in the Snap Store
 
-Эта инструкция рассчитана на первую публикацию и не требует собственного
-APT-репозитория или ручной работы с PGP-ключами.
+This guide walks through the first release. You do not need to run an APT
+repository or manage PGP keys yourself.
 
-## 1. Перед началом
+## Before you begin
 
-Понадобятся:
+You will need:
 
-- Ubuntu и аккаунт Ubuntu One / Snapcraft;
-- публичный GitHub-репозиторий с этим проектом;
-- свободное имя пакета в Snap Store;
-- рабочая сборка, проверенная на реальном HLS-плейлисте, который разрешено
-  скачивать.
+- an Ubuntu One / Snapcraft developer account;
+- a GitHub repository containing this project;
+- a Snap Store name that you have registered;
+- a build tested with an HLS stream you are authorized to download.
 
-Если владельцу аккаунта от 13 до 18 лет, условия Snap Store требуют согласия
-родителя или законного представителя.
+If the account owner is between 13 and 18 years old, the Snap Store terms
+require permission from a parent or legal guardian.
 
-Перед публикацией замените при необходимости `name: hlsget` в
-`snap/snapcraft.yaml`. Имя должно совпадать с именем, зарегистрированным в
-Snap Store. Если `hlsget` уже занято, выберите уникальное имя до начала
-публикации.
+The package currently uses the name `hlsget`. If that name is unavailable,
+choose a unique name and update `name` in `snap/snapcraft.yaml` before building.
+Do not use another service's brand in the package name.
 
-## 2. Зарегистрировать имя
+## 1. Put the project on GitHub
 
-Войдите на [dashboard.snapcraft.io](https://dashboard.snapcraft.io/) и
-зарегистрируйте snap name. В описании заявки можно написать:
+Create a repository, then push the project:
 
-> A strictly confined command-line utility for downloading direct HLS playlists
-> that the user owns or is authorized to download. It does not extract links
-> from websites, bypass DRM, or collect user data.
+```bash
+git init
+git add .
+git commit -m 'Prepare hlsget for the Snap Store'
+git branch -M main
+git remote add origin https://github.com/USERNAME/hlsget.git
+git push -u origin main
+```
 
-Регистрация нового имени может попасть на ручную проверку. Не используйте в
-названии чужие бренды или названия видеосервисов.
+After the repository exists, add these optional metadata fields to
+`snap/snapcraft.yaml` with your real URL:
 
-## 3. Установить инструменты сборки
+```yaml
+website: https://github.com/USERNAME/hlsget
+source-code: https://github.com/USERNAME/hlsget
+issues: https://github.com/USERNAME/hlsget/issues
+contact: https://github.com/USERNAME/hlsget/issues
+```
+
+Do not publish placeholder URLs.
+
+## 2. Register the Snap name
+
+Sign in at [dashboard.snapcraft.io](https://dashboard.snapcraft.io/) and request
+the name you want to publish. A clear request description is:
+
+> A strictly confined command-line utility for downloading direct HLS
+> playlists that the user owns or is authorized to download. It does not
+> extract links from websites, bypass DRM, or collect user data.
+
+A new name request may be reviewed manually. The name in the Store and the
+`name` field in `snap/snapcraft.yaml` must match.
+
+## 3. Install the build tools
 
 ```bash
 sudo snap install snapcraft --classic
@@ -43,131 +66,162 @@ newgrp lxd
 lxd init --auto
 ```
 
-LXD нужен Snapcraft как чистая среда сборки. Если он уже настроен, повторять
-инициализацию не нужно.
+Snapcraft uses LXD as a clean build environment. If LXD is already configured,
+you do not need to initialize it again.
 
-## 4. Собрать пакет
+## 4. Build the Snap
 
-Из корня репозитория:
+Run this from the repository root:
 
 ```bash
 snapcraft
 ```
 
-В результате появится файл примерно такого вида:
+A successful build creates a file similar to:
 
 ```text
 hlsget_0.1.0_amd64.snap
 ```
 
-FFmpeg и Python-зависимости включаются внутрь snap автоматически. На компьютере
-пользователя отдельно устанавливать Python, библиотеки и FFmpeg не потребуется.
+The package includes Python, the Python dependencies, and FFmpeg. End users do
+not need to install them separately.
 
-## 5. Проверить локально
+## 5. Test the local package
 
-Локальная сборка не подписана Snap Store, поэтому для теста используется
-`--dangerous`:
+A local Snap has not been signed by the Store, so install it with `--dangerous`:
 
 ```bash
 sudo snap install --dangerous ./hlsget_0.1.0_amd64.snap
 hlsget --version
 hlsget --help
+```
+
+Run a legal test download into your home directory:
+
+```bash
 hlsget 'TEST_M3U8_URL' -o "$HOME/Downloads/hlsget-test.mp4"
+```
+
+Check the resulting media:
+
+```bash
+ffprobe -v error \
+  -show_entries stream=codec_type,codec_name \
+  -show_entries format=duration,size \
+  "$HOME/Downloads/hlsget-test.mp4"
+```
+
+Also verify:
+
+- best and explicit quality selection;
+- interruption with `Ctrl+C` followed by resume;
+- useful errors for 401, 403, 404, and 429 responses;
+- output in `~/Downloads`;
+- no access outside the permissions declared by the Snap;
+- no secrets printed in logs.
+
+Inspect the connected interfaces:
+
+```bash
 snap connections hlsget
 ```
 
-Проверьте:
+The application should only need `network` and `home`.
 
-- выбор качества;
-- наличие видео и звука через `ffprobe`;
-- обработку остановки через `Ctrl+C` и повторный запуск;
-- ошибки 401/403/404/429;
-- сохранение в `~/Downloads`;
-- отсутствие записи за пределами домашней директории;
-- отсутствие DRM-обхода и секретов в логах.
-
-После теста:
+Remove the local build when testing is complete:
 
 ```bash
 sudo snap remove hlsget
 ```
 
-Дополнительная автоматическая проверка пакета:
+## 6. Run the automated review tools
 
 ```bash
 sudo snap install review-tools
 snap-review ./hlsget_0.1.0_amd64.snap
 ```
 
-## 6. Загрузить сначала в edge
+Fix errors before uploading. Review warnings should also be understood rather
+than ignored blindly.
+
+## 7. Publish to the edge channel first
+
+Authenticate the Snapcraft CLI:
 
 ```bash
 snapcraft login
+```
+
+Upload the tested package to `edge`:
+
+```bash
 snapcraft upload --release=edge ./hlsget_0.1.0_amd64.snap
 ```
 
-Проверьте опубликованную сборку на другом устройстве:
+Test the Store build on another machine:
 
 ```bash
 sudo snap install hlsget --edge
 hlsget --version
 ```
 
-Если имя пакета отличается от `hlsget`, используйте зарегистрированное имя.
+If you registered a different package name, use that name in these commands.
 
-## 7. Оформить страницу магазина
+## 8. Complete the Store listing
 
-В панели Snapcraft заполните:
+In the Snapcraft dashboard, provide:
 
-- короткое описание без обещаний обхода ограничений;
-- полное описание из `snap/snapcraft.yaml`;
-- лицензию MIT;
-- ссылку на GitHub и раздел Issues;
-- контакт разработчика;
-- категорию Utilities;
-- иконку и, при желании, снимок терминала с тестовым публичным плейлистом;
-- ссылку на `PRIVACY.md`.
+- a short, factual summary;
+- the description from `snap/snapcraft.yaml`;
+- the MIT license;
+- the GitHub, Issues, and contact links;
+- the Utilities category;
+- a simple icon;
+- optionally, a terminal screenshot using a public test stream;
+- a link to `PRIVACY.md`.
 
-Не используйте логотипы, скриншоты и названия сторонних видеосервисов без
-разрешения. Не прикладывайте пример ссылки на защищённый авторским правом фильм.
+Do not use a third-party streaming service's logo, screenshots, or name without
+permission. Do not use copyrighted films as Store screenshots or test examples.
+Do not describe the application as a way to bypass access controls.
 
-## 8. Выпустить stable
+## 9. Release to stable
 
-После проверки edge-релиза переведите эту же ревизию в канал `stable` через
-панель Snapcraft либо загрузите проверанную сборку напрямую:
+After the edge build has passed your tests, promote that revision to `stable`
+from the Snapcraft dashboard. You can also upload the same verified build
+straight to stable:
 
 ```bash
 snapcraft upload --release=stable ./hlsget_0.1.0_amd64.snap
 ```
 
-После публикации установка для пользователей будет выглядеть так:
+Users can then install it with:
 
 ```bash
 sudo snap install hlsget
 ```
 
-Обновления Snap устанавливает автоматически.
+Snap will deliver future stable updates automatically.
 
-## 9. Следующие версии
+## Releasing the next version
 
-Для каждого релиза:
+For every release:
 
-1. обновите `__version__` в `src/hlsget/__init__.py`;
-2. обновите `version` в `snap/snapcraft.yaml` и `pyproject.toml`;
-3. запустите тесты и локальную сборку;
-4. сначала опубликуйте в `edge`;
-5. после проверки продвиньте ревизию в `stable`.
+1. update `__version__` in `src/hlsget/__init__.py`;
+2. update `version` in `pyproject.toml` and `snap/snapcraft.yaml`;
+3. run the tests and build a local Snap;
+4. publish to `edge`;
+5. test the Store build on a second machine;
+6. promote the tested revision to `stable`.
 
-Для ARM64 пакет нужно собрать отдельно, например через удалённую сборку
-Snapcraft. Не объявляйте архитектуру поддерживаемой, пока не протестируете её.
+Build ARM64 separately and test it on ARM hardware before advertising support.
 
-## Почему используется strict confinement
+## Why the package uses strict confinement
 
-Утилите нужны только два стандартных разрешения:
+The application only needs two standard interfaces:
 
-- `network` — скачать плейлист, сегменты и ключи AES-128;
-- `home` — сохранить итоговый файл в обычную папку домашней директории.
+- `network` to download playlists, media segments, and ordinary AES-128 keys;
+- `home` to save the resulting video in a normal home-directory folder.
 
-FFmpeg находится внутри пакета, поэтому доступ к системному `/usr/bin/ffmpeg`
-не нужен. Это позволяет использовать `strict` вместо `classic`, избежать
-запроса `--classic` при установке и упростить проверку магазина.
+FFmpeg is bundled inside the Snap, so the application does not need access to
+the host's `/usr/bin/ffmpeg`. Strict confinement avoids an unnecessary classic
+confinement review and keeps the installation command simple.

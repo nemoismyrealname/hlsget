@@ -1,112 +1,153 @@
 # hlsget
 
-Небольшая CLI-утилита для скачивания разрешённых HLS-потоков по прямой
-ссылке `.m3u8`. Она загружает сегменты параллельно, показывает понятный
-прогресс и собирает готовое видео через FFmpeg без перекодирования.
+`hlsget` is a small command-line tool for downloading an authorized HLS stream
+from a direct `.m3u8` link. It downloads media segments concurrently, shows a
+clear progress bar, and asks FFmpeg to assemble the final video without
+re-encoding it.
 
-> Используйте программу только для видео, которое принадлежит вам или которое
-> вам разрешено скачивать. `hlsget` не обходит DRM и не извлекает ссылки с сайтов.
+> Use `hlsget` only for streams you own or are allowed to download. It does not
+> discover links on websites, bypass DRM, or unlock protected content.
 
-## Быстрый старт
+## Quick start
 
-После публикации в Snap Store установка будет занимать одну команду:
+Once the app is published in the Snap Store, installation will take one command:
 
 ```bash
 sudo snap install hlsget
 ```
 
-Скачивание в текущую папку:
+Download a stream into the current directory:
 
 ```bash
 hlsget 'https://example.com/master.m3u8'
 ```
 
-По умолчанию программа выбирает лучшее качество, использует 8 параллельных
-загрузчиков и сохраняет результат как `video.mp4`.
+By default, `hlsget`:
 
-Другое имя файла:
+- selects the best available video quality;
+- uses 8 concurrent downloads;
+- saves the result as `video.mp4`;
+- keeps completed segments after an error so the next run can resume.
 
-```bash
-hlsget 'https://example.com/master.m3u8' -o film.mp4
-```
-
-Если сервер проверяет страницу-источник:
+Choose a different file name or location:
 
 ```bash
-hlsget 'M3U8_URL' --referer 'https://example.com/video' -o film.mp4
+hlsget 'https://example.com/master.m3u8' -o ~/Videos/movie.mp4
 ```
 
-Дополнительные HTTP-заголовки можно повторять:
+## Streams that require request headers
+
+Some servers check which page the request came from. Pass that page with
+`--referer`:
+
+```bash
+hlsget 'M3U8_URL' \
+  --referer 'https://example.com/video' \
+  -o movie.mp4
+```
+
+You can repeat `--header` for additional HTTP headers:
 
 ```bash
 hlsget 'M3U8_URL' \
   -H 'Origin: https://example.com' \
   -H 'Cookie: name=value' \
-  -o film.mkv
+  -o movie.mkv
 ```
 
-Не публикуйте cookies и токены в логах или исходном коде. Команда с cookies
-может остаться в истории терминала.
+Be careful with cookies and access tokens. A command containing them may remain
+in your terminal history. Never publish them in an issue, screenshot, or log.
 
-## Полезные параметры
+## Common options
 
 ```text
--o, --output FILE       имя и путь итогового файла
--q, --quality VALUE     best, worst или высота: 720, 1080
--w, --workers NUMBER    параллельные загрузки, по умолчанию 8
--H, --header HEADER     дополнительный HTTP-заголовок
---referer URL           страница-источник
---retries NUMBER        число повторных попыток
---keep-temp             не удалять сегменты после успешной сборки
--y, --overwrite         перезаписать существующий файл
---version               показать версию
+-o, --output FILE       Output file name and location
+-q, --quality VALUE     best, worst, or a height such as 720 or 1080
+-w, --workers NUMBER    Concurrent downloads; the default is 8
+-H, --header HEADER     Additional HTTP header; can be repeated
+--referer URL           Source page sent in the Referer header
+--retries NUMBER        Retry attempts for each resource
+--keep-temp             Keep segments after a successful download
+-y, --overwrite         Replace an existing output file
+--version               Print the installed version
 ```
 
-Если CDN отвечает `429 Too Many Requests`, уменьшите число загрузчиков:
+If a server responds with `429 Too Many Requests`, lower the worker count:
 
 ```bash
 hlsget 'M3U8_URL' --workers 4
 ```
 
-## Куда сохраняется видео
+## Where files are saved
 
-Относительный путь считается от текущей директории:
+Relative output paths start in the directory where you run the command:
 
 ```bash
 cd ~/Downloads
 hlsget 'M3U8_URL'
 ```
 
-Результат появится в `~/Downloads/video.mp4`. В строгом Snap-режиме запись
-разрешена в обычные, не скрытые папки домашней директории. Для внешних дисков
-потребуется отдельное разрешение, которое пока не запрашивается.
+The result will be `~/Downloads/video.mp4`.
 
-## Что поддерживается
+The strictly confined Snap can write to normal, non-hidden folders inside your
+home directory. External drives are not enabled in the first Snap release.
 
-- прямые master- и media-плейлисты;
-- выбор лучшего, худшего или ближайшего заданного качества;
-- параллельная загрузка, повторы и простое продолжение;
-- MPEG-TS и fMP4, `EXT-X-MAP` и byte ranges;
-- обычное HLS-шифрование AES-128;
-- сборка MP4/MKV через FFmpeg с `-c copy`.
+## Supported today
 
-Пока не поддерживаются live-потоки, отдельные внешние аудиодорожки и субтитры,
-автоматическое извлечение плейлиста со страницы, DRM и SAMPLE-AES.
+- direct HLS master and media playlists;
+- best, worst, or nearest requested resolution;
+- concurrent downloads, retries, and basic resume;
+- MPEG-TS and fragmented MP4 segments;
+- `EXT-X-MAP` and byte-range resources;
+- ordinary HLS AES-128 encryption;
+- MP4 and MKV remuxing through bundled FFmpeg.
 
-## Если что-то не работает
+## Not supported yet
 
-**401 или 403.** Ссылка могла истечь либо серверу нужны `Referer`, `Origin` или
-cookies из вашей авторизованной сессии.
+- finding the playlist URL on a web page;
+- live-stream polling;
+- separate external audio or subtitle renditions;
+- DRM and SAMPLE-AES;
+- downloading content without the required authorization.
 
-**429.** Уменьшите `--workers` до 4 или 2.
+## Troubleshooting
 
-**Нет звука.** Скорее всего, master-плейлист использует отдельную аудиодорожку;
-текущая версия её ещё не загружает.
+### `401 Unauthorized` or `403 Forbidden`
 
-**Ошибка FFmpeg.** Временные файлы сохраняются автоматически после ошибки.
-Повторный запуск с тем же URL и выходным путём использует уже готовые сегменты.
+The signed URL may have expired, or the server may require the browser's
+`Referer`, `Origin`, or authorized session cookies. Capture a fresh playlist URL
+and pass only the headers you are permitted to use.
 
-## Разработка
+### `429 Too Many Requests`
+
+Try `--workers 4` or `--workers 2`. More connections do not always mean a faster
+download.
+
+### The output has no audio
+
+The master playlist probably points to a separate audio rendition. The current
+version does not download external audio tracks yet.
+
+### FFmpeg reports an error
+
+Temporary resources are kept after a failed run. Run the same command again
+with the same URL and output path to reuse completed downloads.
+
+### The player cannot open the file
+
+Inspect the result with:
+
+```bash
+ffprobe -v error \
+  -show_entries stream=codec_type,codec_name \
+  -show_entries format=duration,size \
+  video.mp4
+```
+
+## Development setup
+
+Snap is the intended installation method for end users. Contributors can run
+the project from source:
 
 ```bash
 sudo apt install python3 python3-venv ffmpeg
@@ -116,6 +157,6 @@ pip install -e .
 hlsget --help
 ```
 
-Инструкция по сборке и публикации Snap находится в
-[`SNAPCRAFT.md`](SNAPCRAFT.md). Политика конфиденциальности — в
-[`PRIVACY.md`](PRIVACY.md). Проект распространяется по лицензии MIT.
+See [`SNAPCRAFT.md`](SNAPCRAFT.md) for the release process and
+[`PRIVACY.md`](PRIVACY.md) for the privacy statement. The project is licensed
+under the MIT License.
