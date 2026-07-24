@@ -1,0 +1,31 @@
+name: hlsget
+title: hlsget
+base: core24
+version: "0.1.0"
+summary: Download authorized HLS streams from the terminal
+description: |
+  hlsget is a small command-line downloader for direct HLS (.m3u8) links.
+  It downloads media segments concurrently, shows clear progress, and uses
+  bundled FFmpeg to remux them without re-encoding.
+
+  Use hlsget only for streams you own or are authorized to download. It does
+  not extract links from websites and does not support DRM or SAMPLE-AES.
+license: MIT
+grade: stable
+confinement: strict
+
+apps:
+  hlsget:
+    command: bin/hlsget
+    environment:
+      PATH: $SNAP/usr/bin:$SNAP/bin:$PATH
+    plugs:
+      - network
+      - home
+
+parts:
+  hlsget:
+    plugin: python
+    source: .
+    stage-packages:
+      - ffmpeg
